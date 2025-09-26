@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shareable Notes</title>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #6b8cbc;
+            --background-color: #f5f7fa;
+            --text-color: #333;
+            --border-color: #e1e5eb;
+            --sidebar-width: 300px;
+            --header-height: 60px;
+            --toolbar-height: 50px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-bar {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .note-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .note-item:hover {
+            background-color: #f0f4f8;
+        }
+
+        .note-item.active {
+            background-color: #e6eff9;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .note-item.pinned {
+            border-left: 3px solid #ffc107;
+        }
+
+        .note-pin {
+            margin-right: 10px;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .note-pin.pinned {
+            color: #ffc107;
+        }
+
+        .note-content-preview {
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .note-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .add-note-btn {
+            margin: 15px;
+            padding: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .add-note-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-header {
+            height: var(--header-height);
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: white;
+        }
+
+        .note-title-input {
+            border: none;
+            font-size: 18px;
+            font-weight: 600;
+            width: 100%;
+            padding: 10px 0;
+            outline: none;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            color: #666;
+            transition: background-color 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #f0f4f8;
+        }
+
+        .toolbar {
+            height: var(--toolbar-height);
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: white;
+        }
+
+        .toolbar-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 4px;
+            color: #666;
+            transition: background-color 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background-color: #f0f4f8;
+        }
+
+        .toolbar-btn.active {
+            background-color: #e6eff9;
+            color: var(--primary-color);
+        }
+
+        .editor-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: white;
+        }
+
+        .editor {
+            min-height: 100%;
+            outline: none;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .editor:empty:before {
+            content: "Start typing your note...";
+            color: #aaa;
+        }
+
+        /* AI Features Panel */
+        .ai-panel {
+            width: 300px;
+            background-color: white;
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .ai-section {
+            margin-bottom: 20px;
+        }
+
+        .ai-section h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .glossary-term {
+            background-color: #fff9c4;
+            padding: 2px 4px;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .glossary-tooltip {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 250px;
+            display: none;
+        }
+
+        .tag-suggestion {
+            display: inline-block;
+            background-color: #e6eff9;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .grammar-error {
+            text-decoration: underline wavy red;
+        }
+
+        /* Encryption Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: 40%;
+            }
+
+            .main-content {
+                height: 60%;
+            }
+
+            .ai-panel {
+                width: 100%;
+                height: 30%;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar for notes list -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>My Notes</h2>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search notes...">
+        </div>
+        <div class="notes-list" id="notes-list">
+            <!-- Notes will be dynamically added here -->
+        </div>
+        <button class="add-note-btn" id="add-note-btn">+ New Note</button>
+    </div>
+
+    <!-- Main content area -->
+    <div class="main-content">
+        <div class="editor-header">
+            <input type="text" id="note-title-input" placeholder="Note Title">
+            <div class="editor-actions">
+                <button class="action-btn" id="pin-note-btn" title="Pin Note">📌</button>
+                <button class="action-btn" id="encrypt-note-btn" title="Encrypt Note">🔒</button>
+                <button class="action-btn" id="delete-note-btn" title="Delete Note">🗑️</button>
+            </div>
+        </div>
+        <div class="toolbar">
+            <button class="toolbar-btn" data-command="bold" title="Bold">B</button>
+            <button class="toolbar-btn" data-command="italic" title="Italic">I</button>
+            <button class="toolbar-btn" data-command="underline" title="Underline">U</button>
+            <select class="toolbar-btn" id="font-size-select">
+                <option value="1">Small</option>
+                <option value="2" selected>Normal</option>
+                <option value="3">Large</option>
+                <option value="4">X-Large</option>
+            </select>
+            <button class="toolbar-btn" data-command="justifyLeft" title="Align Left">⬅️</button>
+            <button class="toolbar-btn" data-command="justifyCenter" title="Align Center">↔️</button>
+            <button class="toolbar-btn" data-command="justifyRight" title="Align Right">➡️</button>
+            <button class="toolbar-btn" id="ai-summarize-btn" title="AI Summarize">🤖 Summarize</button>
+            <button class="toolbar-btn" id="ai-tags-btn" title="AI Tags">🏷️ Tags</button>
+        </div>
+        <div class="editor-container">
+            <div class="editor" id="editor" contenteditable="true"></div>
+        </div>
+    </div>
+
+    <!-- AI Features Panel -->
+    <div class="ai-panel">
+        <div class="ai-section">
+            <h3>AI Summary</h3>
+            <div id="ai-summary">No summary available</div>
+        </div>
+        <div class="ai-section">
+            <h3>Suggested Tags</h3>
+            <div id="ai-tags">No tags suggested</div>
+        </div>
+        <div class="ai-section">
+            <h3>Grammar Check</h3>
+            <div id="grammar-check">No errors found</div>
+        </div>
+    </div>
+
+    <!-- Encryption Modal -->
+    <div class="modal" id="encryption-modal">
+        <div class="modal-content">
+            <h2>Password Protect Note</h2>
+            <input type="password" id="encryption-password" placeholder="Enter password">
+            <input type="password" id="encryption-confirm" placeholder="Confirm password">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="cancel-encryption">Cancel</button>
+                <button class="modal-btn primary" id="confirm-encryption">Encrypt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decryption Modal -->
+    <div class="modal" id="decryption-modal">
+        <div class="modal-content">
+            <h2>Enter Password</h2>
+            <input type="password" id="decryption-password" placeholder="Enter password to view note">
+            <div class="modal-buttons">
+                <button class="modal-btn" id="cancel-decryption">Cancel</button>
+                <button class="modal-btn primary" id="confirm-decryption">Decrypt</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // === GROQ API Helper ===
+        const GROQ_API_KEY = "REDACTED"; // 🔑 put your Groq API key here
+
+        async function callGroq(prompt) {
+            try {
+                const response = await fetch("http://localhost:5000/api/groq", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const data = await response.json();
+                console.log("Groq response:", data); // for debugging
+
+                // Adjust depending on backend response
+                if (data && data.choices && data.choices.length > 0) {
+                    return data.choices[0].message?.content?.trim() || "No response";
+                } else if (data && data.output_text) {
+                    // some backend versions return output_text directly
+                    return data.output_text.trim();
+                } else {
+                    return "No response from AI";
+                }
+            } catch (err) {
+                console.error("callGroq error:", err);
+                return "Error generating response";
+            }
+        }
+
+
+
+
+        // Note Management
+        class NotesManager {
+            constructor() {
+                this.notes = JSON.parse(localStorage.getItem('notes')) || [];
+                this.currentNoteId = null;
+                this.init();
+            }
+
+            init() {
+                this.renderNotesList();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('add-note-btn').addEventListener('click', () => this.createNote());
+                document.getElementById('search-input').addEventListener('input', (e) => this.searchNotes(e.target.value));
+                document.getElementById('pin-note-btn').addEventListener('click', () => this.togglePinNote());
+                document.getElementById('delete-note-btn').addEventListener('click', () => this.deleteNote());
+                document.getElementById('note-title-input').addEventListener('input', (e) => this.updateNoteTitle(e.target.value));
+
+                // Encryption
+                document.getElementById('encrypt-note-btn').addEventListener('click', () => this.showEncryptionModal());
+                document.getElementById('cancel-encryption').addEventListener('click', () => this.hideEncryptionModal());
+                document.getElementById('confirm-encryption').addEventListener('click', () => this.encryptNote());
+                document.getElementById('cancel-decryption').addEventListener('click', () => this.hideDecryptionModal());
+                document.getElementById('confirm-decryption').addEventListener('click', () => this.decryptNote());
+
+                // AI Features
+                document.getElementById('ai-summarize-btn').addEventListener('click', () => this.generateSummary());
+                document.getElementById('ai-tags-btn').addEventListener('click', () => this.generateTags());
+
+                // Editor content change
+                document.getElementById('editor').addEventListener('input', () => this.updateNoteContent());
+
+                // Auto-save on blur
+                document.getElementById('editor').addEventListener('blur', () => this.saveNotes());
+                document.getElementById('note-title-input').addEventListener('blur', () => this.saveNotes());
+            }
+
+            createNote() {
+                const newNote = {
+                    id: Date.now().toString(),
+                    title: 'New Note',
+                    content: '',
+                    pinned: false,
+                    encrypted: false,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+
+                this.notes.unshift(newNote);
+                this.saveNotes();
+                this.renderNotesList();
+                this.selectNote(newNote.id);
+            }
+
+            selectNote(noteId) {
+                this.currentNoteId = noteId;
+                const note = this.notes.find(n => n.id === noteId);
+
+                if (!note) return;
+
+                // Update UI
+                document.getElementById('note-title-input').value = note.title;
+
+                // Handle encrypted notes
+                if (note.encrypted) {
+                    this.showDecryptionModal(note);
+                    document.getElementById('editor').innerHTML = '<em>Note is encrypted. Enter password to view.</em>';
+                    document.getElementById('editor').setAttribute('contenteditable', 'false');
+                } else {
+                    document.getElementById('editor').innerHTML = note.content;
+                    document.getElementById('editor').setAttribute('contenteditable', 'true');
+                }
+
+                // Update pin button state
+                document.getElementById('pin-note-btn').textContent = note.pinned ? '📌' : '📌';
+
+                // Update notes list highlighting
+                this.highlightSelectedNote(noteId);
+
+                // Generate AI features for non-encrypted notes
+                if (!note.encrypted) {
+                    this.generateSummary();
+                    this.generateTags();
+                    this.checkGrammar();
+                    this.highlightGlossary();
+                }
+            }
+
+            updateNoteTitle(title) {
+                if (!this.currentNoteId) return;
+
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (note) {
+                    note.title = title;
+                    note.updatedAt = new Date().toISOString();
+                    this.saveNotes();
+                    this.renderNotesList();
+                }
+            }
+
+            updateNoteContent() {
+                if (!this.currentNoteId) return;
+
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (note && !note.encrypted) {
+                    note.content = document.getElementById('editor').innerHTML;
+                    note.updatedAt = new Date().toISOString();
+
+                    // Auto-generate AI features
+                    this.generateSummary();
+                    this.generateTags();
+                    this.checkGrammar();
+                }
+            }
+
+            togglePinNote() {
+                if (!this.currentNoteId) return;
+
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (note) {
+                    note.pinned = !note.pinned;
+                    note.updatedAt = new Date().toISOString();
+                    this.saveNotes();
+                    this.renderNotesList();
+
+                    // Update pin button
+                    document.getElementById('pin-note-btn').textContent = note.pinned ? '📌' : '📌';
+                }
+            }
+
+            deleteNote() {
+                if (!this.currentNoteId) return;
+
+                if (confirm('Are you sure you want to delete this note?')) {
+                    this.notes = this.notes.filter(n => n.id !== this.currentNoteId);
+                    this.saveNotes();
+                    this.renderNotesList();
+
+                    // Clear editor if no notes left
+                    if (this.notes.length === 0) {
+                        this.currentNoteId = null;
+                        document.getElementById('note-title-input').value = '';
+                        document.getElementById('editor').innerHTML = '';
+                    } else {
+                        // Select the first note
+                        this.selectNote(this.notes[0].id);
+                    }
+                }
+            }
+
+            searchNotes(query) {
+                const notesList = document.getElementById('notes-list');
+                const noteItems = notesList.querySelectorAll('.note-item');
+
+                noteItems.forEach(item => {
+                    const title = item.querySelector('.note-title').textContent;
+                    const content = item.querySelector('.note-content-preview').textContent;
+
+                    if (title.toLowerCase().includes(query.toLowerCase()) ||
+                        content.toLowerCase().includes(query.toLowerCase())) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+
+            renderNotesList() {
+                const notesList = document.getElementById('notes-list');
+                notesList.innerHTML = '';
+
+                // Sort notes: pinned first, then by updated date
+                const sortedNotes = [...this.notes].sort((a, b) => {
+                    if (a.pinned && !b.pinned) return -1;
+                    if (!a.pinned && b.pinned) return 1;
+                    return new Date(b.updatedAt) - new Date(a.updatedAt);
+                });
+
+                sortedNotes.forEach(note => {
+                    const noteElement = document.createElement('div');
+                    noteElement.className = `note-item ${note.pinned ? 'pinned' : ''} ${note.id === this.currentNoteId ? 'active' : ''}`;
+                    noteElement.innerHTML = `
+                        <div class="note-pin ${note.pinned ? 'pinned' : ''}">${note.pinned ? '📌' : '📌'}</div>
+                        <div>
+                            <div class="note-title">${note.title || 'Untitled'}</div>
+                            <div class="note-content-preview">${this.getContentPreview(note)}</div>
+                        </div>
+                    `;
+
+                    noteElement.addEventListener('click', () => this.selectNote(note.id));
+                    notesList.appendChild(noteElement);
+                });
+            }
+
+            getContentPreview(note) {
+                if (note.encrypted) {
+                    return '<em>Encrypted content</em>';
+                }
+
+                // Create a temporary element to parse HTML and get text content
+                const temp = document.createElement('div');
+                temp.innerHTML = note.content;
+                const text = temp.textContent || temp.innerText || '';
+
+                return text.substring(0, 50) + (text.length > 50 ? '...' : '');
+            }
+
+            highlightSelectedNote(noteId) {
+                const noteItems = document.querySelectorAll('.note-item');
+                noteItems.forEach(item => {
+                    item.classList.remove('active');
+                });
+
+                const selectedNote = document.querySelector(`.note-item[data-note-id="${noteId}"]`);
+                if (selectedNote) {
+                    selectedNote.classList.add('active');
+                }
+            }
+
+            saveNotes() {
+                localStorage.setItem('notes', JSON.stringify(this.notes));
+            }
+
+            // Encryption methods
+            showEncryptionModal() {
+                document.getElementById('encryption-modal').style.display = 'flex';
+            }
+
+            hideEncryptionModal() {
+                document.getElementById('encryption-modal').style.display = 'none';
+                document.getElementById('encryption-password').value = '';
+                document.getElementById('encryption-confirm').value = '';
+            }
+
+            encryptNote() {
+                const password = document.getElementById('encryption-password').value;
+                const confirmPassword = document.getElementById('encryption-confirm').value;
+
+                if (!password) {
+                    alert('Please enter a password');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    alert('Passwords do not match');
+                    return;
+                }
+
+                if (!this.currentNoteId) return;
+
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (note) {
+                    // Simple encryption (in a real app, use a proper encryption library)
+                    note.encrypted = true;
+                    note.encryptionKey = btoa(password); // Base64 encoding (not secure for production)
+                    note.content = this.simpleEncrypt(note.content, password);
+                    note.updatedAt = new Date().toISOString();
+
+                    this.saveNotes();
+                    this.hideEncryptionModal();
+                    this.selectNote(note.id); // Refresh the view
+                }
+            }
+
+            showDecryptionModal(note) {
+                document.getElementById('decryption-modal').style.display = 'flex';
+            }
+
+            hideDecryptionModal() {
+                document.getElementById('decryption-modal').style.display = 'none';
+                document.getElementById('decryption-password').value = '';
+            }
+
+            decryptNote() {
+                const password = document.getElementById('decryption-password').value;
+
+                if (!password) {
+                    alert('Please enter the password');
+                    return;
+                }
+
+                if (!this.currentNoteId) return;
+
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (note && note.encrypted) {
+                    try {
+                        const decryptedContent = this.simpleDecrypt(note.content, password);
+                        note.encrypted = false;
+                        delete note.encryptionKey;
+                        note.content = decryptedContent;
+                        note.updatedAt = new Date().toISOString();
+
+                        this.saveNotes();
+                        this.hideDecryptionModal();
+                        this.selectNote(note.id); // Refresh the view
+                    } catch (e) {
+                        alert('Incorrect password');
+                    }
+                }
+            }
+
+            // Simple encryption/decryption (for demonstration only)
+            simpleEncrypt(text, password) {
+                return btoa(text); // Base64 encoding (not secure for production)
+            }
+
+            simpleDecrypt(encryptedText, password) {
+                return atob(encryptedText); // Base64 decoding
+            }
+
+            // AI Features (mock implementation)
+            async generateSummary() {
+                if (!this.currentNoteId) return;
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (!note || note.encrypted) return;
+
+                const text = document.getElementById("editor").innerText;
+                if (text.length < 10) {
+                    document.getElementById("ai-summary").textContent = "Note is too short to summarize";
+                    return;
+                }
+
+                document.getElementById("ai-summary").textContent = "Summarizing...";
+
+                const summary = await callGroq(`Summarize this note in 1–2 sentences:\n\n${text}`);
+                document.getElementById("ai-summary").textContent = summary;
+            }
+
+            async generateTags() {
+                if (!this.currentNoteId) return;
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (!note || note.encrypted) return;
+
+                const text = document.getElementById("editor").innerText;
+                if (text.length < 10) {
+                    document.getElementById("ai-tags").textContent = "Note is too short to generate tags";
+                    return;
+                }
+
+                document.getElementById("ai-tags").textContent = "Generating tags...";
+
+                const tags = await callGroq(`Suggest 3-5 short tags for this note:\n\n${text}`);
+                const tagList = tags.split(/[,;]+/).map(t => t.trim()).filter(Boolean);
+                document.getElementById("ai-tags").innerHTML =
+                    tagList.map(tag => `<span class="tag-suggestion">${tag}</span>`).join("");
+            }
+
+
+            async checkGrammar() {
+                if (!this.currentNoteId) return;
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (!note || note.encrypted) return;
+
+                const text = document.getElementById("editor").innerText;
+
+                if (text.length < 5) {
+                    document.getElementById("grammar-check").textContent = "No errors found";
+                    return;
+                }
+
+                document.getElementById("grammar-check").textContent = "Checking grammar...";
+
+                try {
+                    const corrections = await callGroq(`Find grammatical mistakes in the following text. 
+        Show the corrected version with errors marked using **[error]** around them:\n\n${text}`);
+
+                    document.getElementById("grammar-check").textContent = corrections;
+
+                    // Optional: underline errors in editor
+                    // (replace words marked with [error] by span.grammar-error)
+                } catch (err) {
+                    document.getElementById("grammar-check").textContent = "Error checking grammar";
+                }
+            }
+
+
+            async highlightGlossary() {
+                if (!this.currentNoteId) return;
+                const note = this.notes.find(n => n.id === this.currentNoteId);
+                if (!note || note.encrypted) return;
+
+                const editor = document.getElementById("editor");
+                const text = editor.innerText;
+
+                if (text.length < 10) return;
+
+                try {
+                    const glossary = await callGroq(`Extract 5 important terms with short definitions 
+        from this note. Reply in JSON format: [{"term":"...", "definition":"..."}]\n\n${text}`);
+
+                    let terms = [];
+                    try {
+                        terms = JSON.parse(glossary);
+                    } catch {
+                        console.warn("Invalid JSON, fallback");
+                        terms = [];
+                    }
+
+                    let html = editor.innerHTML;
+
+                    terms.forEach(({ term, definition }) => {
+                        const regex = new RegExp(`\\b${term}\\b`, "gi");
+                        html = html.replace(regex,
+                            `<span class="glossary-term" title="${definition}">${term}</span>`);
+                    });
+
+                    editor.innerHTML = html;
+                } catch (err) {
+                    console.error("Glossary highlighting error:", err);
+                }
+            }
+
+
+        }
+
+        // Rich Text Editor
+        class RichTextEditor {
+            constructor() {
+                this.setupToolbar();
+            }
+
+            setupToolbar() {
+                const toolbarButtons = document.querySelectorAll('.toolbar-btn[data-command]');
+                toolbarButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const command = button.getAttribute('data-command');
+                        this.executeCommand(command);
+                    });
+                });
+
+                // Font size selector
+                document.getElementById('font-size-select').addEventListener('change', (e) => {
+                    this.executeCommand('fontSize', e.target.value);
+                });
+            }
+
+            executeCommand(command, value = null) {
+                document.execCommand(command, false, value);
+                document.getElementById('editor').focus();
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            const notesManager = new NotesManager();
+            const editor = new RichTextEditor();
+
+            // Create a sample note if no notes exist
+            if (notesManager.notes.length === 0) {
+                notesManager.createNote();
+            }
+        });
+    </script>
+</body>
+
+</html>
